@@ -15,35 +15,33 @@ public class Client {
 
     public static void main(String[] args) {
         try {
-            System.out.println("Conectándo al servidor en en puerto: " + port);
+            //Se conecta al servidor
+            System.out.println("Conectando al servidor en en puerto: " + port);
             connectionSock = new Socket(hostname, port);
-
             serverOutput = new DataOutputStream(connectionSock.getOutputStream());
+            System.out.println("Conexión exitosa!!");
 
-            System.out.println("Connection made.");
-
-            // Start a thread to listen and display data sent by the server
+            // Inicia un hilo para escuchar e imprimir datos enviados desde el servidor
             Acciones jugadas = new Acciones(connectionSock);
-            Thread theThread = new Thread(jugadas);
-            theThread.start();
+            Thread hilo1 = new Thread(jugadas);
+            hilo1.start();
 
-            // Read input from the keyboard and send it to everyone else.
-            // The only way to quit is to hit control-c, but a quit command
-            // could easily be added.
+            // Lee entradas desde el teclado y envía datos a cuanquiera.
+            // La única forma de salir es pulsando Ctrl+C
             while (serverOutput != null) {
                 String data = keyboard.nextLine();
                 if (!myTurn) {
-                    System.out.println("Please wait for your turn.");
+                    System.out.println("Por favor, espera tu turno");
                 } else if ((data.equals("0") || data.equals("1")) || data.equals("2")) {
                     serverOutput.writeBytes(data + "\n");
-                } else if (data.equals("quit")) {
+                } else if (data.equals("Salir")) {
                     serverOutput.close();
                     serverOutput = null;
                 } else {
-                    System.out.println("Invalid input, please try again.");
+                    System.out.println("Dato inválido, intente de nuevo");
                 }
             }
-            System.out.println("Connection lost.");
+            System.out.println("Conexión perdida");
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
@@ -56,31 +54,27 @@ class Acciones implements Runnable {
 
     Acciones(Socket sock) {
         this.connectionSock = sock;
-        //this.myTurn = myTurn;
     }
 
     public void run() {
-        // Wait for data from the server.  If received, output it.
+        // Espera datos desde el servidor.  Si lo recibe, lo saca.
         try {
             BufferedReader serverInput = new BufferedReader(new InputStreamReader(connectionSock.getInputStream()));
             while (true) {
                 if (serverInput == null) {
-                    // Connection was lost
-                    System.out.println("Closing connection for socket " + connectionSock);
+                    // La conexión se pierde
+                    System.out.println("Cerrando conexión del socket " + connectionSock);
                     connectionSock.close();
                     break;
                 }
-                // Get data sent from the server
+                // Obtiene dato enviado desde el servidor
 
-                //System.out.println("A");
                 String serverText = serverInput.readLine();
-                //System.out.println("B");
-                //System.out.println(serverText);
 
                 if (serverText.startsWith("#")) {
-                    printBoardFormatted(serverText.substring(1));
+                    imprimirTablero(serverText.substring(1));
                 } else if (serverText.startsWith("~")) {
-                    //wait
+                    //espera
                 } else if (serverText.startsWith("+")) {
                     this.myTurn = true;
                 } else if (serverText.startsWith("-")) {
@@ -94,7 +88,7 @@ class Acciones implements Runnable {
         }
     }
 
-    private void printBoardFormatted(String boardData) {
+    private void imprimirTablero(String boardData) {
         String[] lines = boardData.split(";");
         //System.out.println(Integer.toString(lines.length));
         String[][] board = new String[3][3];
@@ -120,5 +114,5 @@ class Acciones implements Runnable {
         System.out.format("2 %2s |%2s |%2s \n", board[2][0], board[2][1], board[2][2]);
 
     }
-} // ClientListener for MTClient
+}
 

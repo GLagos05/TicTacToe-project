@@ -16,31 +16,31 @@ public class Server {
     }
 
     private void getConnection() {
-        // Wait for a connection from the client
+        // Espera la conexión de un cliente
         try {
-            System.out.println("Waiting for player connections on port 7654.");
+            System.out.println("Esperando conexiones de jugadores en el puerto 22222");
             serverSock = new ServerSocket(port);
-            // This is an infinite loop, the user will have to shut it down
-            // using control-c
+            // Esto es un loop infinito, el usuario debe terminar el proceso
+            // Usando Ctrl+C
             InterfazTablero game = new InterfazTablero();
 
             int playerID = 1;
 
             for (int i = 0; i < 2; ++i) {
                 connectionSock = serverSock.accept();
-                // Add this socket to the list
+                // Añade un socket a la lista
                 this.socketList[i] = connectionSock;
-                // Send to ClientHandler the socket and arraylist of all sockets
+                // Envía al controlador el socket del servidor y la lista de sockets
 
                 System.out.println("Player " + Integer.toString(i + 1) + " connected successfully.");
 
-                Controlador handler = new Controlador(connectionSock, this.socketList, game, playerID);
-                Thread theThread = new Thread(handler);
-                theThread.start();
+                Controlador controlador = new Controlador(connectionSock, this.socketList, game, playerID);
+                Thread hilo2 = new Thread(controlador);
+                hilo2.start();
                 playerID -= 2;
             }
 
-            System.out.println("Game running...");
+            System.out.println("Partida iniciada!!");
 
             Socket connectionSock = serverSock.accept();
 
@@ -48,9 +48,7 @@ public class Server {
                 socketList[i].close();
             }
 
-            // Will never get here, but if the above loop is given
-            // an exit condition then we'll go ahead and close the socket
-            //serverSock.close();
+            // se cierran los sockets
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
@@ -73,11 +71,13 @@ class InterfazTablero {
     public volatile int playerMove; //X = 1, O = -1
     private int[][] currentBoard; //3x3
 
+    //Reinicia el juego
     public void resetGame() {
         this.currentBoard = new int[3][3];
         this.playerMove = 1;
     }
 
+    //envía movimientos
     public boolean submitMove(int i, int j) {
         if (this.currentBoard[i][j] != 0) {
             return false;
@@ -88,15 +88,16 @@ class InterfazTablero {
         }
     }
 
+    //imprime estado
     public String printState() {
         String output = "#";
         for (int i = 0; i < 3; ++i) {
             output += Integer.toString(this.currentBoard[i][0]) + "," + Integer.toString(this.currentBoard[i][1]) + "," + Integer.toString(this.currentBoard[i][2]) + ";";
         }
-        //output += Integer.toString(this.playerMove);
         return output;
     }
 
+    //verifica si el jugador ganó
     public int checkWin() {
         boolean cats = true;
         for (int i = 0; i < 3; ++i) {
@@ -147,59 +148,58 @@ class Controlador implements Runnable {
 
     public void run() {
         try {
-            //TTTInterface game = new TTTInterface();
 
             BufferedReader playerInput = new BufferedReader(new InputStreamReader(this.connectionSock.getInputStream()));
 
             switch (this.playerID) {
                 case -1:
-                    sendMessage("\nYou are player 'O', you will go second." + "\r\n");
-                    sendMessage("-" + "\r\n");
+                    enviarMensaje("\nYou are player 'O', you will go second." + "\r\n");
+                    enviarMensaje("-" + "\r\n");
                     break;
                 case 1:
-                    sendMessage("\nYou are player 'X', you will go first." + "\r\n");
-                    sendMessage("+" + "\r\n");
+                    enviarMensaje("\nYou are player 'X', you will go first." + "\r\n");
+                    enviarMensaje("+" + "\r\n");
                     break;
                 default:
                     break;
             }
 
             while (this.partida.checkWin() == 0) {
-                sendMessage(this.partida.printState() + "\r\n");
+                enviarMensaje(this.partida.printState() + "\r\n");
                 String playerSym = "";
                 int playerIndex = 1;
                 int indexInverse = 0;
                 if (this.partida.playerMove == this.playerID) {
-                    // my turn
-                    sendMessage("Pleaae enter a row (0-2): " + "\r\n");
+                    // Mi turno
+                    enviarMensaje("Ingresa una fila (0-2): " + "\r\n");
                     String row = playerInput.readLine().trim();
-                    sendMessage("Pleaae enter a column (0-2): " + "\r\n");
+                    enviarMensaje("Ingresa una columna (0-2): " + "\r\n");
                     String col = playerInput.readLine().trim();
                     if (!(this.partida.submitMove(Integer.parseInt(row), Integer.parseInt(col)))) {
-                        sendMessage("Invalid move." + "\r\n");
+                        enviarMensaje("Movimiento inválido" + "\r\n");
                     } else {
-                        sendMessage("-" + "\r\n");
+                        enviarMensaje("-" + "\r\n");
                     }
                 } else {
-                    // other player's turn
-                    sendMessage("Please wait for opponent's move." + "\r\n");
+                    // turno del oponente
+                    enviarMensaje("Por favor, espera el movimiento del gato " + "\r\n");
                     while (this.partida.playerMove != this.playerID) {
                         Thread.sleep(500);
                     }
-                    sendMessage("+" + "\r\n");
+                    enviarMensaje("+" + "\r\n");
                 }
             }
 
-            sendMessage(this.partida.printState());
+            enviarMensaje(this.partida.printState());
 
-            int checkResult = this.partida.checkWin();
-            sendMessage(Integer.toString(checkResult) + "\r\n");
-            if (checkResult == this.playerID) {
-                sendMessage("GAME OVER! YOU WIN!" + "\r\n");
-            } else if (checkResult == 2) {
-                sendMessage("GAME OVER! TIE GAME!" + "\r\n");
+            int verificarResultado = this.partida.checkWin();
+            enviarMensaje(Integer.toString(verificarResultado) + "\r\n");
+            if (verificarResultado == this.playerID) {
+                enviarMensaje("GAME OVER! HAS GANADO!" + "\r\n");
+            } else if (verificarResultado == 2) {
+                enviarMensaje("GAME OVER! HAS EMPATADO!" + "\r\n");
             } else {
-                sendMessage("GAME OVER! YOU LOSE!" + "\r\n");
+                enviarMensaje("GAME OVER! HAS PERDIDO!" + "\r\n");
             }
         } catch (IOException e) {
             System.out.println(e.getMessage());
@@ -208,11 +208,10 @@ class Controlador implements Runnable {
         }
     }
 
-    private void sendMessage(String message) { //0 = O, 1 = X, 2 = both
+    private void enviarMensaje(String mensaje) { //0 = O, 1 = X, 2 = both
         try {
             DataOutputStream clientOutput = new DataOutputStream(this.connectionSock.getOutputStream());
-            clientOutput.writeBytes(message);
-            //System.out.println(message);
+            clientOutput.writeBytes(mensaje);
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
